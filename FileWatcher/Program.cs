@@ -38,7 +38,7 @@ namespace VSCode.FileSystem
 
             // Event processor deals with buffering and normalization of events
             var processor = new EventProcessor((e) => {
-                Console.WriteLine("{0}|{1}", e.changeType, e.path);
+                Console.WriteLine("{0}|{1}{2}", e.changeType, e.path, !string.IsNullOrEmpty(e.oldPath) ? $"|{e.oldPath}" : "");
 
                 if (verboseLogging)
                 {

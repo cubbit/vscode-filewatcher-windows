@@ -12,14 +12,16 @@ namespace VSCode.FileSystem
     {
         public int changeType { get; set; }
         public string path { get; set; }
-    }
+		public string oldPath { get; set; }
+	}
 
     public enum ChangeType : int
     {
         CHANGED = 0,
         CREATED = 1,
         DELETED = 2,
-        LOG = 3
+        RENAMED = 3,
+        LOG = 4,
     }
 
     public class FileWatcher
@@ -44,7 +46,7 @@ namespace VSCode.FileSystem
             watcher.Changed += new FileSystemEventHandler((object source, FileSystemEventArgs e) => { ProcessEvent(e, ChangeType.CHANGED); });
             watcher.Created += new FileSystemEventHandler((object source, FileSystemEventArgs e) => { ProcessEvent(e, ChangeType.CREATED); });
             watcher.Deleted += new FileSystemEventHandler((object source, FileSystemEventArgs e) => { ProcessEvent(e, ChangeType.DELETED); });
-            watcher.Renamed += new RenamedEventHandler((object source, RenamedEventArgs e) => { ProcessEvent(e); });
+            watcher.Renamed += new RenamedEventHandler((object source, RenamedEventArgs e) => { ProcessRenameEvent(e); });
             watcher.Error += new ErrorEventHandler((object source, ErrorEventArgs e) => { onError(e); });
 
             watcher.InternalBufferSize = 32768; // changing this to a higher value can lead into issues when watching UNC drives
@@ -57,31 +59,43 @@ namespace VSCode.FileSystem
             this.eventCallback(new FileEvent
             {
                 changeType = (int)changeType,
-                path = e.FullPath
+                path = e.FullPath,
             });
         }
 
-        private void ProcessEvent(RenamedEventArgs e)
+        private void ProcessRenameEvent(RenamedEventArgs e)
         {
             var newInPath = e.FullPath.StartsWith(watchPath);
             var oldInPath = e.OldFullPath.StartsWith(watchPath);
 
-            if (newInPath)
-            {
+            if (newInPath && oldInPath)
+			{
                 this.eventCallback(new FileEvent
                 {
-                    changeType = (int)ChangeType.CREATED,
-                    path = e.FullPath
+                    changeType = (int)ChangeType.RENAMED,
+                    path = e.FullPath,
+                    oldPath = e.OldFullPath,
                 });
-            }
+			}
+            else
+			{
+                if (newInPath)
+                {
+                    this.eventCallback(new FileEvent
+                    {
+                        changeType = (int)ChangeType.CREATED,
+                        path = e.FullPath
+                    });
+                }
 
-            if (oldInPath)
-            {
-                this.eventCallback(new FileEvent
+                if (oldInPath)
                 {
-                    changeType = (int)ChangeType.DELETED,
-                    path = e.OldFullPath
-                });
+                    this.eventCallback(new FileEvent
+                    {
+                        changeType = (int)ChangeType.DELETED,
+                        path = e.OldFullPath
+                    });
+                }
             }
         }
     }
