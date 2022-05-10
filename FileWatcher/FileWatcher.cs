@@ -61,6 +61,39 @@ namespace VSCode.FileSystem
                 changeType = (int)changeType,
                 path = e.FullPath,
             });
+
+            try
+			{
+                if (changeType == ChangeType.CREATED && (File.Exists(e.FullPath) || Directory.Exists(e.FullPath)))
+                {
+                    var attributes = File.GetAttributes(e.FullPath);
+
+                    if (attributes.HasFlag(FileAttributes.Directory))
+                    {
+                        var directories = Directory.GetDirectories(e.FullPath);
+
+                        foreach (var directory in directories)
+                        {
+                            var eventArg = new FileSystemEventArgs(WatcherChangeTypes.Created, Path.GetDirectoryName(directory), Path.GetFileName(directory));
+                            ProcessEvent(eventArg, changeType);
+                        }
+
+                        var files = Directory.GetFiles(e.FullPath);
+
+                        foreach (var file in files)
+                        {
+                            var eventArg = new FileSystemEventArgs(WatcherChangeTypes.Created, Path.GetDirectoryName(file), Path.GetFileName(file));
+                            ProcessEvent(eventArg, changeType);
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+			{
+                // Swallowing exception because we dispatched the first event anyway
+			}
+
+            
         }
 
         private void ProcessRenameEvent(RenamedEventArgs e)
